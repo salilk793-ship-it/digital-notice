@@ -1,0 +1,182 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  password  String
+  name      String?
+  email     String?
+  avatar    String?
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  notices     Notice[]     @relation("PublishedNotices")
+  requests    Request[]    @relation("SubmittedRequests")
+  feedbacks   Feedback[]   @relation("UserFeedbacks")
+  viewEvents  ViewEvent[]  @relation("UserViews")
+  comments    Comment[]    @relation("UserComments")
+  bookmarks   Bookmark[]   @relation("UserBookmarks")
+  activities  ActivityLog[] @relation("UserActivities")
+}
+
+model Notice {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  category       String   @default("general")
+  priority       String   @default("normal") // low, normal, high, urgent
+  startDate      DateTime
+  expiryDate     DateTime
+  status         String   @default("active") // active, expired, deleted, scheduled
+  isPinned       Boolean  @default(false)
+  publishedById  String?
+  publishedBy    User?    @relation("PublishedNotices", fields: [publishedById], references: [id])
+  
+  // Edit tracking
+  isEdited       Boolean  @default(false)
+  editedAt       DateTime?
+  editedById     String?
+  
+  // View tracking
+  viewCount      Int      @default(0)
+  
+  // Reactions
+  helpfulCount   Int      @default(0)
+  likeCount      Int      @default(0)
+  
+  // Comment count
+  commentCount   Int      @default(0)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  viewEvents   ViewEvent[]  @relation("NoticeViews")
+  reactions    Reaction[]   @relation("NoticeReactions")
+  comments     Comment[]    @relation("NoticeComments")
+  bookmarks    Bookmark[]   @relation("NoticeBookmarks")
+  activities   ActivityLog[] @relation("NoticeActivities")
+
+  @@index([isPinned])
+  @@index([priority])
+}
+
+model Request {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String   @default("general")
+  requestedBy String
+  requesterId String?
+  requester   User?    @relation("SubmittedRequests", fields: [requesterId], references: [id])
+  status      String   @default("pending") // pending, approved, rejected
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  subject     String
+  message     String
+  type        String   @default("suggestion") // suggestion, feedback, complaint, feature_request
+  status      String   @default("pending") // pending, reviewed, resolved
+  userId      String?
+  user        User?    @relation("UserFeedbacks", fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ViewEvent {
+  id        String   @id @default(cuid())
+  noticeId  String
+  notice    Notice   @relation("NoticeViews", fields: [noticeId], references: [id])
+  userId    String?
+  user      User?    @relation("UserViews", fields: [userId], references: [id])
+  viewedAt  DateTime @default(now())
+  
+  @@index([noticeId])
+  @@index([viewedAt])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  noticeId  String
+  notice    Notice   @relation("NoticeReactions", fields: [noticeId], references: [id])
+  userId    String?
+  type      String   // helpful, like
+  createdAt DateTime @default(now())
+  
+  @@unique([noticeId, userId, type])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  noticeId  String
+  notice    Notice   @relation("NoticeComments", fields: [noticeId], references: [id])
+  userId    String?
+  user      User?    @relation("UserComments", fields: [userId], references: [id])
+  content   String
+  parentId  String?  // For replies to comments
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([noticeId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  noticeId  String
+  notice    Notice   @relation("NoticeBookmarks", fields: [noticeId], references: [id])
+  userId    String
+  user      User     @relation("UserBookmarks", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  
+  @@unique([noticeId, userId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String   // create, update, delete, view, comment, etc.
+  entityType String  // notice, user, request, feedback
+  entityId  String?
+  userId    String?
+  user      User?    @relation("UserActivities", fields: [userId], references: [id])
+  noticeId  String?
+  notice    Notice?  @relation("NoticeActivities", fields: [noticeId], references: [id])
+  details   String?  // JSON string for additional info
+  createdAt DateTime @default(now())
+  
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+model Analytics {
+  id                    String   @id @default(cuid())
+  date                  DateTime @unique
+  totalNotices          Int      @default(0)
+  activeNotices         Int      @default(0)
+  newNotices            Int      @default(0)
+  totalViews            Int      @default(0)
+  uniqueVisitors        Int      @default(0)
+  newRequests           Int      @default(0)
+  approvedRequests      Int      @default(0)
+  rejectedRequests      Int      @default(0)
+  newFeedbacks          Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
