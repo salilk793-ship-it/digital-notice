@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { broadcastSync } from '@/lib/sync-broadcast';
+import { detectConflict } from '@/lib/sync-types';
 
 // GET single notice
 export async function GET(
@@ -24,14 +25,20 @@ export async function GET(
       return NextResponse.json({ error: 'Notice not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ notice });
+    return NextResponse.json({ 
+      notice,
+      sync: {
+        version: Date.now(),
+        timestamp: new Date().toISOString(),
+      }
+    });
   } catch (error) {
     console.error('Get notice error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// PUT update notice (with ownership check and edit tracking)
+// PUT update notice (with ownership check, edit tracking, and conflict resolution)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,10 +68,64 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, description, category, startDate, expiryDate, status, priority, isPinned } = body;
+    const { 
+      title, 
+      description, 
+      category, 
+      startDate, 
+      expiryDate, 
+      status, 
+      priority, 
+      isPinned,
+      image,
+      attachment,
+      attachmentName,
+      contact,
+      // Conflict resolution
+      lastVersion,
+      lastModified,
+      deviceId,
+    } = body;
 
     // Check if this is just a pin toggle (only isPinned provided)
     const isPinToggle = Object.keys(body).length === 1 && 'isPinned' in body;
+
+    // Conflict detection: check if the notice was modified since the client last saw it
+    if (lastVersion && lastModified) {
+      const existingUpdatedAt = existingNotice.updatedAt.getTime()
+      const clientModified = new Date(lastModified).getTime()
+      
+      const conflict = detectConflict(
+        clientModified,
+        existingUpdatedAt,
+        lastModified,
+        existingNotice.updatedAt.toISOString()
+      )
+      
+      if (conflict.hasConflict && conflict.strategy === 'reject') {
+        // The notice was modified on another device - return conflict info
+        const conflictResponse = {
+          error: 'Conflict detected',
+          code: 'CONFLICT',
+          conflict: {
+            localVersion: clientModified,
+            remoteVersion: existingUpdatedAt,
+            localData: { title, description, category, startDate, expiryDate, status, priority, isPinned },
+            remoteData: {
+              title: existingNotice.title,
+              description: existingNotice.description,
+              category: existingNotice.category,
+              startDate: existingNotice.startDate,
+              expiryDate: existingNotice.expiryDate,
+              status: existingNotice.status,
+              priority: existingNotice.priority,
+              isPinned: existingNotice.isPinned,
+            },
+          },
+        }
+        return NextResponse.json(conflictResponse, { status: 409 })
+      }
+    }
 
     // OWNERSHIP CHECK: Only the creator can edit their own notices (unless it's just pin toggle)
     if (!isPinToggle && existingNotice.publishedById !== user.id) {
@@ -84,6 +145,10 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (priority !== undefined) updateData.priority = priority;
     if (isPinned !== undefined) updateData.isPinned = isPinned;
+    if (image !== undefined) updateData.image = image;
+    if (attachment !== undefined) updateData.attachment = attachment;
+    if (attachmentName !== undefined) updateData.attachmentName = attachmentName;
+    if (contact !== undefined) updateData.contact = contact;
 
     if (startDate && expiryDate && new Date(expiryDate) <= new Date(startDate)) {
       return NextResponse.json({ error: 'Expiry date must be after start date' }, { status: 400 });
@@ -118,9 +183,24 @@ export async function PUT(
       },
     });
 
-    broadcastSync({ type: 'notices', action: 'updated', entityId: id });
+    // Broadcast sync event with conflict resolution metadata
+    broadcastSync({ 
+      type: 'notices', 
+      action: 'updated', 
+      entityId: id 
+    }, {
+      deviceId,
+      versionVector: deviceId ? { [deviceId]: Date.now() } : undefined,
+    });
 
-    return NextResponse.json({ success: true, notice });
+    return NextResponse.json({ 
+      success: true, 
+      notice,
+      sync: {
+        version: Date.now(),
+        timestamp: new Date().toISOString(),
+      }
+    });
   } catch (error) {
     console.error('Update notice error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -164,6 +244,9 @@ export async function DELETE(
       }, { status: 403 });
     }
 
+    // Get device ID from request headers for sync
+    const deviceId = request.headers.get('x-device-id')
+
     await db.notice.update({
       where: { id },
       data: { status: 'deleted' },
@@ -181,9 +264,22 @@ export async function DELETE(
       },
     });
 
-    broadcastSync({ type: 'notices', action: 'deleted', entityId: id });
+    // Broadcast sync event
+    broadcastSync({ 
+      type: 'notices', 
+      action: 'deleted', 
+      entityId: id 
+    }, {
+      deviceId,
+    });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      sync: {
+        version: Date.now(),
+        timestamp: new Date().toISOString(),
+      }
+    });
   } catch (error) {
     console.error('Delete notice error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

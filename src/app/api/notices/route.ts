@@ -98,7 +98,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { title, description, category, startDate, expiryDate, isScheduled, priority } = await request.json();
+    const body = await request.json();
+    const { 
+      title, 
+      description, 
+      category, 
+      startDate, 
+      expiryDate, 
+      isScheduled, 
+      priority,
+      image,
+      attachment,
+      attachmentName,
+      contact,
+      // Sync metadata
+      deviceId,
+      version,
+    } = body;
 
     if (!title || !description || !startDate || !expiryDate) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
@@ -133,6 +149,11 @@ export async function POST(request: NextRequest) {
         helpfulCount: 0,
         likeCount: 0,
         commentCount: 0,
+        // New optional fields
+        image: image || null,
+        attachment: attachment || null,
+        attachmentName: attachmentName || null,
+        contact: contact || null,
       },
       include: {
         publishedBy: {
@@ -153,9 +174,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    broadcastSync({ type: 'notices', action: 'created', entityId: notice.id });
+    // Broadcast sync event with device tracking
+    broadcastSync({ 
+      type: 'notices', 
+      action: 'created', 
+      entityId: notice.id 
+    }, {
+      deviceId,
+      versionVector: deviceId ? { [deviceId]: version || Date.now() } : undefined,
+    });
 
-    return NextResponse.json({ success: true, notice });
+    return NextResponse.json({ 
+      success: true, 
+      notice,
+      sync: {
+        version: Date.now(),
+        timestamp: new Date().toISOString(),
+      }
+    });
   } catch (error) {
     console.error('Create notice error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

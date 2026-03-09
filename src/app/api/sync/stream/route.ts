@@ -15,6 +15,12 @@ export const runtime = 'nodejs'
  *
  * Each event is encoded as:
  *   data: <JSON-stringified SyncEvent>\n\n
+ *
+ * Features:
+ * - Device ID tracking for multi-device sync
+ * - Version vectors for conflict resolution
+ * - Connection state management
+ * - Heartbeat for keep-alive through proxies
  */
 export async function GET(request: NextRequest) {
   // ── Authentication ──────────────────────────────────────────────────────────
@@ -30,18 +36,33 @@ export async function GET(request: NextRequest) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // ── SSE Stream ──────────────────────────────────────────────────────────────
+  // ── Get client metadata ─────────────────────────────────────────────────────
+  const userAgent = request.headers.get('user-agent') || 'unknown'
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const clientIP = forwardedFor?.split(',')[0] || 'unknown'
+
+  // Generate or get device ID from headers
+  const deviceId = request.headers.get('x-device-id') || `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+
+  // ── SSE Stream ─────────────────────────────────────────────────────────────
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial connection confirmation
+      // Send initial connection confirmation with device info
       const connectEvent: SyncEvent = {
         type: 'notices',
         action: 'refresh',
         timestamp: new Date().toISOString(),
         version: Date.now(),
-        payload: { connected: true, userId: user.userId },
+        deviceId,
+        payload: { 
+          connected: true, 
+          userId: user.userId,
+          deviceId,
+          userAgent,
+          clientIP,
+        },
       }
       controller.enqueue(
         encoder.encode(`data: ${JSON.stringify(connectEvent)}\n\n`)
@@ -59,8 +80,13 @@ export async function GET(request: NextRequest) {
       // Forward every sync broadcast to this SSE client
       const onSync = (event: SyncEvent) => {
         try {
+          // Add device ID to the event for tracking
+          const enrichedEvent: SyncEvent = {
+            ...event,
+            deviceId: event.deviceId || deviceId,
+          }
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
+            encoder.encode(`data: ${JSON.stringify(enrichedEvent)}\n\n`)
           )
         } catch {
           // Client disconnected – clean up

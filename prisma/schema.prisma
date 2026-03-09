@@ -43,6 +43,14 @@ model Notice {
   publishedById  String?
   publishedBy    User?    @relation("PublishedNotices", fields: [publishedById], references: [id])
   
+  // Image and attachment fields (optional)
+  image          String?
+  attachment     String?
+  attachmentName String?
+  
+  // Contact field for inquiries
+  contact        String?
+  
   // Edit tracking
   isEdited       Boolean  @default(false)
   editedAt       DateTime?

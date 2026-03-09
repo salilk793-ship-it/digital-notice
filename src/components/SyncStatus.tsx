@@ -1,7 +1,7 @@
 'use client'
 
 import type { SyncStatus } from '@/hooks/use-sync'
-import { Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle, ShieldOff } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface SyncStatusProps {
@@ -40,6 +40,11 @@ const statusConfig: Record<
     label: 'Sync error – reconnecting…',
     color: 'text-red-500',
     animate: true,
+  },
+  disabled: {
+    icon: ShieldOff,
+    label: 'Guest Mode – Sync Disabled',
+    color: 'text-muted-foreground',
   },
 }
 

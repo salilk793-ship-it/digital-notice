@@ -83,6 +83,9 @@ import {
   FileDown,
   Download,
   RefreshCw,
+  Image,
+  Paperclip,
+  Phone,
 } from 'lucide-react';
 import AnimatedBackground from '@/components/AnimatedBackground';
 import { useSync } from '@/hooks/use-sync';
@@ -115,6 +118,11 @@ interface Notice {
   helpfulCount: number;
   likeCount: number;
   commentCount: number;
+  // New optional fields
+  image?: string | null;
+  attachment?: string | null;
+  attachmentName?: string | null;
+  contact?: string | null;
 }
 
 interface Comment {
@@ -268,6 +276,11 @@ export default function NoticeBoardApp() {
     expiryDate: '',
     expiryTime: '',
     isScheduled: false,
+    // New optional fields
+    image: '',
+    attachment: '',
+    attachmentName: '',
+    contact: '',
   });
   const [requestForm, setRequestForm] = useState({
     requestedBy: '',
@@ -313,8 +326,10 @@ export default function NoticeBoardApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Only enable sync for authenticated (non-guest) users
+  const isGuest = user?.id === 'guest' || user?.userId === 'Guest'
   const { status: syncStatus } = useSync({
-    enabled: !!user,
+    enabled: !!user && !isGuest,
     handlers: {
       notices:   () => refreshNotices(),
       reactions: () => refreshNotices(),
@@ -350,6 +365,7 @@ export default function NoticeBoardApp() {
   useEffect(() => {
     if (user) {
       fetchNotices();
+      fetchAllNotices();
     }
   }, [searchQuery, categoryFilter, sortBy, sortOrder]);
 
@@ -396,7 +412,7 @@ export default function NoticeBoardApp() {
 
   const fetchAllNotices = async () => {
     try {
-      const res = await fetch('/api/notices?status=all&sortBy=createdAt&sortOrder=desc');
+      const res = await fetch(`/api/notices?status=all&sortBy=${sortBy}&sortOrder=${sortOrder}`);
       const data = await res.json();
       setAllNotices(data.notices || []);
     } catch (error) {
@@ -726,6 +742,11 @@ export default function NoticeBoardApp() {
         expiryDate: expiryDate.toISOString().split('T')[0],
         expiryTime: expiryDate.toTimeString().slice(0, 5),
         isScheduled: notice.status === 'scheduled',
+        // New fields
+        image: notice.image || '',
+        attachment: notice.attachment || '',
+        attachmentName: notice.attachmentName || '',
+        contact: notice.contact || '',
       });
     } else {
       const now = new Date();
@@ -741,6 +762,11 @@ export default function NoticeBoardApp() {
         expiryDate: nextWeek.toISOString().split('T')[0],
         expiryTime: nextWeek.toTimeString().slice(0, 5),
         isScheduled: false,
+        // New fields
+        image: '',
+        attachment: '',
+        attachmentName: '',
+        contact: '',
       });
     }
     setShowNoticeModal(true);
@@ -775,6 +801,10 @@ export default function NoticeBoardApp() {
           startDate: startDateTime,
           expiryDate: expiryDateTime,
           isScheduled: noticeForm.isScheduled,
+          image: noticeForm.image || null,
+          attachment: noticeForm.attachment || null,
+          attachmentName: noticeForm.attachmentName || null,
+          contact: noticeForm.contact || null,
         }),
       });
       
@@ -1048,7 +1078,6 @@ export default function NoticeBoardApp() {
   };
 
   const isAdmin = user?.role === 'admin';
-  const isGuest = user?.userId === 'Guest';
 
   // Countdown timer
   const [, setTick] = useState(0);
@@ -1060,7 +1089,7 @@ export default function NoticeBoardApp() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
       </div>
     );
@@ -1078,10 +1107,10 @@ export default function NoticeBoardApp() {
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl shadow-lg shadow-cyan-500/30 mb-6">
               <FileText className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent mb-3">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-foreground via-slate-200 to-slate-400 bg-clip-text text-transparent mb-3">
               Notice Board Pro
             </h1>
-            <p className="text-slate-400 text-lg tracking-wider uppercase">
+            <p className="text-muted-foreground text-lg tracking-wider uppercase">
               Enterprise-grade digital notice management
             </p>
           </div>
@@ -1093,15 +1122,15 @@ export default function NoticeBoardApp() {
                 setRegisterRole('admin');
                 setShowLoginModal(true);
               }}
-              className="group relative p-8 bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl text-left hover:border-cyan-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-cyan-500/10"
+              className="group relative p-8 bg-card/50 backdrop-blur-sm border border-border rounded-2xl text-left hover:border-cyan-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-cyan-500/10"
             >
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
-                <div className="w-14 h-14 bg-slate-700/50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-gradient-to-br group-hover:from-cyan-400 group-hover:to-purple-600 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                  <Settings className="w-7 h-7 text-slate-400 group-hover:text-white transition-colors" />
+                <div className="w-14 h-14 bg-muted rounded-xl flex items-center justify-center mb-6 group-hover:bg-gradient-to-br group-hover:from-cyan-400 group-hover:to-purple-600 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
+                  <Settings className="w-7 h-7 text-muted-foreground group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Administrator</h3>
-                <p className="text-slate-400 mb-6">Full access. Manage notices, approve requests, view analytics.</p>
+                <h3 className="text-xl font-semibold text-foreground mb-2">Administrator</h3>
+                <p className="text-muted-foreground mb-6">Full access. Manage notices, approve requests, view analytics.</p>
                 <div className="flex items-center justify-between text-cyan-400 font-medium">
                   <span>Login Required</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -1111,15 +1140,15 @@ export default function NoticeBoardApp() {
 
             <button
               onClick={enterAsGuest}
-              className="group relative p-8 bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl text-left hover:border-cyan-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-cyan-500/10"
+              className="group relative p-8 bg-card/50 backdrop-blur-sm border border-border rounded-2xl text-left hover:border-cyan-500/50 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-cyan-500/10"
             >
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
-                <div className="w-14 h-14 bg-slate-700/50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-gradient-to-br group-hover:from-cyan-400 group-hover:to-purple-600 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3">
-                  <Users className="w-7 h-7 text-slate-400 group-hover:text-white transition-colors" />
+                <div className="w-14 h-14 bg-muted rounded-xl flex items-center justify-center mb-6 group-hover:bg-gradient-to-br group-hover:from-cyan-400 group-hover:to-purple-600 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3">
+                  <Users className="w-7 h-7 text-muted-foreground group-hover:text-white transition-colors" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">Guest User</h3>
-                <p className="text-slate-400 mb-6">View notices, submit requests, send feedback.</p>
+                <h3 className="text-xl font-semibold text-foreground mb-2">Guest User</h3>
+                <p className="text-muted-foreground mb-6">View notices, submit requests, send feedback.</p>
                 <div className="flex items-center justify-between text-cyan-400 font-medium">
                   <span>Explore Now</span>
                   <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -1131,10 +1160,10 @@ export default function NoticeBoardApp() {
 
         {/* Login Modal */}
         <Dialog open={showLoginModal} onOpenChange={setShowLoginModal}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white">
+          <DialogContent className="bg-popover border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl">Welcome Back</DialogTitle>
-              <DialogDescription className="text-slate-400">
+              <DialogDescription className="text-muted-foreground">
                 Login to access the admin dashboard
               </DialogDescription>
             </DialogHeader>
@@ -1145,7 +1174,7 @@ export default function NoticeBoardApp() {
                   id="loginId"
                   value={loginForm.userId}
                   onChange={(e) => setLoginForm({ ...loginForm, userId: e.target.value })}
-                  className="bg-slate-900 border-slate-600 focus:border-cyan-500"
+                  className="bg-background border-border focus:border-cyan-500"
                   required
                 />
               </div>
@@ -1156,7 +1185,7 @@ export default function NoticeBoardApp() {
                   type="password"
                   value={loginForm.password}
                   onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                  className="bg-slate-900 border-slate-600 focus:border-cyan-500"
+                  className="bg-background border-border focus:border-cyan-500"
                   required
                 />
               </div>
@@ -1181,7 +1210,7 @@ export default function NoticeBoardApp() {
 
         {/* Register Modal */}
         <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
-          <DialogContent className="bg-slate-800 border-slate-700 text-white">
+          <DialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900">
             <DialogHeader>
               <DialogTitle className="text-2xl">Create Account</DialogTitle>
               <DialogDescription className="text-slate-400">
@@ -1254,7 +1283,7 @@ export default function NoticeBoardApp() {
 
   // Main Dashboard
   return (
-    <div className="min-h-screen bg-slate-900 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar Overlay (Mobile) */}
       {sidebarOpen && (
         <div
@@ -1265,12 +1294,12 @@ export default function NoticeBoardApp() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 w-64 bg-slate-800 border-r border-slate-700 flex flex-col z-50 transform transition-transform duration-300 ${
+        className={`fixed lg:static inset-y-0 left-0 w-64 bg-card border-r border-border flex flex-col z-50 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Logo */}
-        <div className="p-4 border-b border-slate-700">
+        <div className="p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-xl flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
@@ -1281,12 +1310,12 @@ export default function NoticeBoardApp() {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <div className="text-xs text-slate-500 uppercase tracking-wider mb-3 px-3">Main</div>
+          <div className="text-xs uppercase tracking-wider mb-3 px-3">Main</div>
           
           <button
             onClick={() => { setCurrentSection('dashboard'); setSidebarOpen(false); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              currentSection === 'dashboard' ? 'bg-cyan-500 text-black font-medium' : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+              currentSection === 'dashboard' ? 'bg-cyan-500 text-black font-medium' : 'hover:bg-muted hover:text-foreground'
             }`}
           >
             <LayoutDashboard className="w-5 h-5" />
@@ -1430,22 +1459,22 @@ export default function NoticeBoardApp() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-border">
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="w-full flex items-center justify-center gap-2 p-2 bg-slate-700 rounded-lg mb-3"
+            className="w-full flex items-center justify-center gap-2 p-2 bg-muted rounded-lg mb-3"
           >
-            {isDarkMode ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-slate-400" />}
-            <span className="text-sm text-slate-300">Toggle Theme</span>
+            {isDarkMode ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-muted-foreground" />}
+            <span className="text-sm text-foreground">Toggle Theme</span>
           </button>
 
           {user && (
-            <div className="text-center text-xs text-slate-500 mb-3">
+            <div className="text-center text-xs text-muted-foreground mb-3">
               {isGuest ? 'Viewing as Guest' : <>Logged in as: <span className="text-cyan-400 font-medium">{user.name || user.userId}</span></>}
             </div>
           )}
 
-          <Button onClick={isGuest ? () => { setUser(null); setShowLanding(true); } : handleLogout} variant="outline" className="w-full border-slate-600 text-slate-300 hover:bg-slate-700">
+          <Button onClick={isGuest ? () => { setUser(null); setShowLanding(true); } : handleLogout} variant="outline" className="w-full border-border text-foreground hover:bg-muted hover:bg-muted">
             <LogOut className="w-4 h-4 mr-2" />
             {isGuest ? 'Exit Guest' : 'Logout'}
           </Button>
@@ -1455,18 +1484,18 @@ export default function NoticeBoardApp() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-screen">
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 px-4 py-3">
+        <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-sm border-b border-border px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 text-slate-400 hover:text-white"
+                className="lg:hidden p-2 text-muted-foreground hover:text-foreground"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <h1 className="text-xl font-semibold text-white capitalize">
+              <h1 className="text-xl font-semibold text-foreground capitalize">
                 {currentSection === 'all-notices' ? 'All Notices' : 
                  currentSection === 'scheduled' ? 'Scheduled Notices' :
                  currentSection === 'analytics' ? 'Analytics Dashboard' :
@@ -1482,12 +1511,12 @@ export default function NoticeBoardApp() {
               {user && <SyncStatus status={syncStatus} />}
               {/* Search */}
               <div className="hidden md:flex items-center relative">
-                <Search className="absolute left-3 w-4 h-4 text-slate-500" />
+                <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search notices..."
-                  className="w-64 pl-9 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  className="w-64 pl-9 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -1503,7 +1532,7 @@ export default function NoticeBoardApp() {
                     <Edit className="w-4 h-4 mr-2" />
                     Submit Request
                   </Button>
-                  <Button onClick={() => setShowFeedbackModal(true)} variant="outline" className="border-slate-600 text-slate-300">
+                  <Button onClick={() => setShowFeedbackModal(true)} variant="outline" className="border-border text-foreground">
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Feedback
                   </Button>
@@ -1521,69 +1550,69 @@ export default function NoticeBoardApp() {
               {/* Stats (Admin Only) */}
               {isAdmin && analytics && (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-                  <Card className="bg-slate-800 border-slate-700">
+                  <Card className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg">
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
                         <FileText className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white">{analytics.overview.totalNotices}</div>
-                        <div className="text-xs text-slate-400">Total Notices</div>
+                        <div className="text-2xl font-bold dark:text-white text-gray-900">{analytics.overview.totalNotices}</div>
+                        <div className="text-xs dark:text-slate-400 text-slate-500">Total Notices</div>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800 border-slate-700">
+                  <Card className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg">
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
                         <Sparkles className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white">{analytics.overview.activeNotices}</div>
-                        <div className="text-xs text-slate-400">Active</div>
+                        <div className="text-2xl font-bold dark:text-white text-gray-900">{analytics.overview.activeNotices}</div>
+                        <div className="text-xs dark:text-slate-400 text-slate-500">Active</div>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800 border-slate-700">
+                  <Card className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg">
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
                         <Eye className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white">{analytics.overview.totalViews}</div>
-                        <div className="text-xs text-slate-400">Total Views</div>
+                        <div className="text-2xl font-bold dark:text-white text-gray-900">{analytics.overview.totalViews}</div>
+                        <div className="text-xs dark:text-slate-400 text-slate-500">Total Views</div>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800 border-slate-700">
+                  <Card className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg">
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
                         <Heart className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white">{analytics.overview.totalReactions}</div>
-                        <div className="text-xs text-slate-400">Reactions</div>
+                        <div className="text-2xl font-bold dark:text-white text-gray-900">{analytics.overview.totalReactions}</div>
+                        <div className="text-xs dark:text-slate-400 text-slate-500">Reactions</div>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800 border-slate-700">
+                  <Card className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg">
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
                         <Bell className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white">{analytics.overview.pendingRequests}</div>
-                        <div className="text-xs text-slate-400">Pending Requests</div>
+                        <div className="text-2xl font-bold dark:text-white text-gray-900">{analytics.overview.pendingRequests}</div>
+                        <div className="text-xs dark:text-slate-400 text-slate-500">Pending Requests</div>
                       </div>
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800 border-slate-700">
+                  <Card className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg">
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center">
                         <CalendarDays className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white">{analytics.overview.scheduledNotices}</div>
-                        <div className="text-xs text-slate-400">Scheduled</div>
+                        <div className="text-2xl font-bold dark:text-white text-gray-900">{analytics.overview.scheduledNotices}</div>
+                        <div className="text-xs dark:text-slate-400 text-slate-500">Scheduled</div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1599,7 +1628,7 @@ export default function NoticeBoardApp() {
                   </div>
                   <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {analytics.trending.map((notice) => (
-                      <Card key={notice.id} className="bg-slate-800 border-slate-700 hover:border-cyan-500/50 transition-colors">
+                      <Card key={notice.id} className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 shadow-lg dark:hover:border-cyan-500/50 hover:border-cyan-500/50 transition-colors">
                         <CardHeader className="pb-2">
                           <CardTitle className="text-sm text-white line-clamp-1">{notice.title}</CardTitle>
                         </CardHeader>
@@ -1707,7 +1736,7 @@ export default function NoticeBoardApp() {
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-slate-400" />
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white">
+                    <SelectTrigger className="w-40 dark:bg-slate-700 dark:border-slate-600 dark:text-white bg-white border-slate-300 text-gray-900">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-slate-600">
@@ -1721,9 +1750,8 @@ export default function NoticeBoardApp() {
                   </Select>
                 </div>
                 <div className="flex items-center gap-2">
-                  {sortOrder === 'desc' ? <SortDesc className="w-4 h-4 text-slate-400" /> : <SortAsc className="w-4 h-4 text-slate-400" />}
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-36 bg-slate-700 border-slate-600 text-white">
+                  <Select value={sortBy} onValueChange={(value) => { setSortBy(value); }}>
+                    <SelectTrigger className="w-36 dark:bg-slate-700 dark:border-slate-600 dark:text-white bg-white border-slate-300 text-gray-900">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-slate-600">
@@ -1734,14 +1762,15 @@ export default function NoticeBoardApp() {
                       <SelectItem value="title">Title</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button
-                    onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-                    variant="outline"
-                    size="sm"
-                    className="border-slate-600 text-slate-300"
-                  >
-                    {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
-                  </Button>
+                  <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as 'asc' | 'desc')}>
+                    <SelectTrigger className="w-28 dark:bg-slate-700 dark:border-slate-600 dark:text-white bg-white border-slate-300 text-gray-900">
+                      <SelectValue placeholder="Order" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectItem value="desc">Descending</SelectItem>
+                      <SelectItem value="asc">Ascending</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1793,22 +1822,56 @@ export default function NoticeBoardApp() {
                   scheduledNotices.map((notice) => {
                     const timeUntil = getTimeUntilStart(notice.startDate);
                     return (
-                      <Card key={notice.id} className="bg-slate-800 border-purple-500/30 border-l-4">
+                      <Card key={notice.id} className="dark:bg-slate-800 dark:border-purple-500/30 bg-white border-slate-200 shadow-lg border-l-4 dark:hover:border-purple-400/50 hover:border-purple-400 transition-colors">
                         <CardHeader className="pb-2">
                           <div className="flex items-start justify-between">
-                            <CardTitle className="text-lg text-white">{notice.title}</CardTitle>
+                            <CardTitle className="text-lg dark:text-white text-gray-900">{notice.title}</CardTitle>
                             <Badge className={`${getCategoryColor(notice.category)} text-xs`}>{notice.category}</Badge>
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          <p className="text-slate-400 text-sm line-clamp-2">{notice.description}</p>
+                          <p className="dark:text-slate-400 text-slate-600 text-sm line-clamp-2">{notice.description}</p>
                           
-                          <div className="flex items-center gap-2 p-2 bg-purple-500/10 rounded-lg text-sm text-purple-300">
+                          {/* Image Preview */}
+                          {notice.image && (
+                            <div className="rounded-lg overflow-hidden border border-slate-600">
+                              <img 
+                                src={notice.image} 
+                                alt={notice.title}
+                                className="w-full h-24 object-cover"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Attachment & Contact */}
+                          {(notice.attachment || notice.contact) && (
+                            <div className="flex flex-wrap gap-2">
+                              {notice.attachment && (
+                                <a 
+                                  href={notice.attachment}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1 bg-slate-700 rounded text-xs text-cyan-400"
+                                >
+                                  <Paperclip className="w-3 h-3" />
+                                  {notice.attachmentName || 'Attachment'}
+                                </a>
+                              )}
+                              {notice.contact && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-slate-700 rounded text-xs text-green-400">
+                                  <Phone className="w-3 h-3" />
+                                  {notice.contact}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-2 p-2 dark:bg-purple-500/10 bg-purple-50 rounded-lg dark:text-purple-300 text-purple-700 text-sm">
                             <Calendar className="w-4 h-4" />
                             <span>{timeUntil.text}</span>
                           </div>
 
-                          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                          <div className="flex flex-wrap gap-2 text-xs dark:text-slate-500 text-slate-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               Start: {formatDateTime(notice.startDate)}
@@ -1816,10 +1879,10 @@ export default function NoticeBoardApp() {
                           </div>
                         </CardContent>
                         <CardFooter className="gap-2">
-                          <Button onClick={() => openNoticeModal(notice)} variant="outline" size="sm" className="flex-1 border-slate-600 text-slate-300">
+                          <Button onClick={() => openNoticeModal(notice)} variant="outline" size="sm" className="flex-1 dark:border-slate-600 dark:text-slate-300 border-slate-300 text-slate-700">
                             <Edit className="w-4 h-4 mr-1" /> Edit
                           </Button>
-                          <Button onClick={() => { setSelectedNoticeId(notice.id); setShowDeleteModal(true); }} variant="outline" size="sm" className="border-slate-600 text-slate-300">
+                          <Button onClick={() => { setSelectedNoticeId(notice.id); setShowDeleteModal(true); }} variant="outline" size="sm" className="dark:border-slate-600 dark:text-slate-300 border-slate-300 text-slate-700">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </CardFooter>
@@ -1929,7 +1992,7 @@ export default function NoticeBoardApp() {
                   <TrendingUp className="w-5 h-5 text-cyan-400" />
                   Most Viewed Notices
                 </h3>
-                <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                <div className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-slate-700/50">
                       <tr>
@@ -1956,7 +2019,7 @@ export default function NoticeBoardApp() {
                 <h3 className="text-lg font-semibold text-white mb-4">Notices by Category</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {analytics.noticesByCategory.map((cat) => (
-                    <Card key={cat.category} className="bg-slate-800 border-slate-700">
+                    <Card key={cat.category} className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200">
                       <CardContent className="p-4 text-center">
                         <div className="text-2xl font-bold text-white">{cat.count}</div>
                         <div className="text-sm text-slate-400 capitalize">{cat.category}</div>
@@ -1971,7 +2034,7 @@ export default function NoticeBoardApp() {
                 <h3 className="text-lg font-semibold text-white mb-4">Top Publishers</h3>
                 <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {analytics.topPublishers.map((pub, i) => (
-                    <Card key={i} className="bg-slate-800 border-slate-700">
+                    <Card key={i} className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200">
                       <CardContent className="p-4 text-center">
                         <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold">
                           {pub.name.charAt(0).toUpperCase()}
@@ -2001,7 +2064,7 @@ export default function NoticeBoardApp() {
                   </div>
                 ) : (
                   feedbacks.map((feedback) => (
-                    <Card key={feedback.id} className="bg-slate-800 border-slate-700">
+                    <Card key={feedback.id} className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900">
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
                           <div>
@@ -2070,7 +2133,7 @@ export default function NoticeBoardApp() {
             <section>
               <div className="flex items-center gap-3 mb-4">
                 <Bookmark className="w-5 h-5 text-yellow-400" />
-                <h2 className="text-xl font-semibold text-white">Your Bookmarks</h2>
+                <h2 className="text-xl font-semibold dark:text-white text-gray-900">Your Bookmarks</h2>
                 <Badge className="bg-yellow-500 text-black">{bookmarks.length}</Badge>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2112,10 +2175,10 @@ export default function NoticeBoardApp() {
             <section>
               <div className="flex items-center gap-3 mb-4">
                 <Activity className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-xl font-semibold text-white">Activity Log</h2>
+                <h2 className="text-xl font-semibold dark:text-white text-gray-900">Activity Log</h2>
                 <Badge className="bg-cyan-500 text-black">{activityLogs.length}</Badge>
               </div>
-              <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+              <div className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 rounded-xl overflow-hidden">
                 <div className="max-h-[600px] overflow-y-auto">
                   {activityLogs.length === 0 ? (
                     <div className="text-center py-12 text-slate-500">
@@ -2124,7 +2187,7 @@ export default function NoticeBoardApp() {
                   ) : (
                     <div className="divide-y divide-slate-700">
                       {activityLogs.map((log) => (
-                        <div key={log.id} className="p-4 flex items-center gap-4 hover:bg-slate-700/30 transition-colors">
+                        <div key={log.id} className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                             log.action === 'create' ? 'bg-green-500/20 text-green-400' :
                             log.action === 'update' ? 'bg-blue-500/20 text-blue-400' :
@@ -2218,7 +2281,7 @@ export default function NoticeBoardApp() {
           {currentSection === 'reports' && isAdmin && (
             <section className="space-y-6">
               {/* Generate Report */}
-              <Card className="bg-slate-800/60 border-slate-700">
+              <Card className="dark:bg-slate-800/60 dark:border-slate-700 bg-white/60 border-slate-200">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <FileDown className="w-5 h-5 text-green-400" />
@@ -2260,7 +2323,7 @@ export default function NoticeBoardApp() {
               </Card>
 
               {/* Reports List */}
-              <Card className="bg-slate-800/60 border-slate-700">
+              <Card className="dark:bg-slate-800/60 dark:border-slate-700 bg-white/60 border-slate-200">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <FileText className="w-5 h-5 text-cyan-400" />
@@ -2310,7 +2373,7 @@ export default function NoticeBoardApp() {
 
       {/* Notice Modal */}
       <Dialog open={showNoticeModal} onOpenChange={setShowNoticeModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900 max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{noticeForm.id ? 'Edit Notice' : 'Publish New Notice'}</DialogTitle>
           </DialogHeader>
@@ -2333,6 +2396,121 @@ export default function NoticeBoardApp() {
                 required
               />
             </div>
+            
+            {/* Contact Field - Admin only */}
+            {user && user.role === 'admin' && (
+              <div className="space-y-2">
+                <Label>Contact Information</Label>
+                <Input
+                  value={noticeForm.contact}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, contact: e.target.value })}
+                  placeholder="Phone, email, or other contact details"
+                  className="bg-slate-900 border-slate-600"
+                />
+              </div>
+            )}
+            
+            {/* Image Upload - Optional */}
+            <div className="space-y-2">
+              <Label>Image (Optional)</Label>
+              <label className="flex items-center justify-center w-full h-12 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 transition-colors cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Create instant preview URL (fast)
+                      const objectUrl = URL.createObjectURL(file);
+                      setNoticeForm({ ...noticeForm, image: objectUrl });
+                      
+                      // Convert to base64 in background (for database storage)
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setNoticeForm({ ...noticeForm, image: reader.result as string });
+                        URL.revokeObjectURL(objectUrl); // Clean up
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Image className="w-4 h-4 mr-2 text-cyan-400" />
+                <span className="text-sm text-slate-300">
+                  {noticeForm.image ? 'Change Image' : 'Click to Upload Image'}
+                </span>
+              </label>
+              {noticeForm.image && (
+                <div className="mt-2 relative rounded-lg overflow-hidden border border-slate-600">
+                  <img 
+                    src={noticeForm.image} 
+                    alt="Preview" 
+                    className="w-full h-32 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setNoticeForm({ ...noticeForm, image: '' })}
+                    className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {/* Attachment Upload - Optional */}
+            <div className="space-y-2">
+              <Label>Attachment (Optional)</Label>
+              <label className="flex items-center justify-center w-full h-12 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 transition-colors cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,.zip,.rar"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Store filename immediately (fast)
+                      setNoticeForm({ 
+                        ...noticeForm, 
+                        attachment: '', // Will be updated after conversion
+                        attachmentName: file.name 
+                      });
+                      
+                      // Convert to base64 in background
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setNoticeForm({ 
+                          ...noticeForm,
+                          attachment: reader.result as string,
+                          attachmentName: file.name 
+                        });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Paperclip className="w-4 h-4 mr-2 text-cyan-400" />
+                <span className="text-sm text-slate-300">
+                  {noticeForm.attachmentName ? 'Change File' : 'Click to Upload Attachment'}
+                </span>
+              </label>
+              {(noticeForm.attachment || noticeForm.attachmentName) && (
+                <div className="flex items-center justify-between p-2 bg-slate-700 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-cyan-400" />
+                    <span className="text-sm text-slate-300 truncate">{noticeForm.attachmentName || 'Attachment'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNoticeForm({ ...noticeForm, attachment: '', attachmentName: '' })}
+                    className="p-1 text-slate-400 hover:text-red-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+            
             <div className="space-y-2">
               <Label>Category</Label>
               <Select value={noticeForm.category} onValueChange={(v) => setNoticeForm({ ...noticeForm, category: v })}>
@@ -2433,7 +2611,7 @@ export default function NoticeBoardApp() {
 
       {/* Request Modal (Guest) */}
       <Dialog open={showRequestModal} onOpenChange={setShowRequestModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900 max-w-md">
           <DialogHeader>
             <DialogTitle>Submit Notice Request</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -2498,7 +2676,7 @@ export default function NoticeBoardApp() {
 
       {/* Feedback Modal (Guest) */}
       <Dialog open={showFeedbackModal} onOpenChange={setShowFeedbackModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900 max-w-md">
           <DialogHeader>
             <DialogTitle>Send Feedback</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -2574,7 +2752,7 @@ export default function NoticeBoardApp() {
 
       {/* Publish Modal (Admin approving request) */}
       <Dialog open={showPublishModal} onOpenChange={setShowPublishModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900 max-w-md">
           <DialogHeader>
             <DialogTitle>Publish Notice</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -2635,7 +2813,7 @@ export default function NoticeBoardApp() {
 
       {/* Delete Modal */}
       <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Move to Trash</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -2651,7 +2829,7 @@ export default function NoticeBoardApp() {
 
       {/* Permanent Delete Modal */}
       <AlertDialog open={showPermanentDeleteModal} onOpenChange={setShowPermanentDeleteModal}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Permanent Delete</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -2667,7 +2845,7 @@ export default function NoticeBoardApp() {
 
       {/* Empty Trash Modal */}
       <AlertDialog open={showEmptyTrashModal} onOpenChange={setShowEmptyTrashModal}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Empty Trash</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -2683,7 +2861,7 @@ export default function NoticeBoardApp() {
 
       {/* Comments Modal */}
       <Dialog open={showCommentsModal} onOpenChange={setShowCommentsModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-card border-border text-foreground max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-cyan-400" />
@@ -2758,7 +2936,7 @@ export default function NoticeBoardApp() {
 
       {/* Profile Modal */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:text-white text-gray-900 max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-cyan-400" />
@@ -2920,8 +3098,8 @@ function NoticeCard({
 
   return (
     <Card
-      className={`bg-slate-800 border-slate-700 hover:border-slate-600 transition-colors border-l-4 relative ${
-        isExpired ? 'opacity-75' : ''
+      className={`dark:bg-slate-800 dark:border-slate-700 bg-white border-slate-200 dark:hover:border-cyan-500/50 hover:border-cyan-500/50 transition-colors border-l-4 relative ${
+        isExpired ? 'dark:opacity-75 opacity-75' : ''
       } ${notice.isPinned ? 'ring-2 ring-cyan-500/50' : ''}`}
       style={{
         borderLeftColor:
@@ -2962,6 +3140,43 @@ function NoticeCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-slate-400 text-sm line-clamp-3">{notice.description}</p>
+        
+        {/* Image Display */}
+        {notice.image && (
+          <div className="rounded-lg overflow-hidden border border-slate-600">
+            <img 
+              src={notice.image} 
+              alt={notice.title}
+              className="w-full h-48 object-cover"
+            />
+          </div>
+        )}
+        
+        {/* Attachment Display */}
+        {notice.attachment && (
+          <a 
+            href={notice.attachment}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 p-3 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors"
+          >
+            <Paperclip className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm text-cyan-400">
+              {notice.attachmentName || 'View Attachment'}
+            </span>
+            <Download className="w-3 h-3 text-slate-400 ml-auto" />
+          </a>
+        )}
+        
+        {/* Contact Information */}
+        {notice.contact && (
+          <div className="flex items-center gap-2 p-3 bg-slate-700/50 rounded-lg">
+            <Phone className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-green-400">
+              Contact: {notice.contact}
+            </span>
+          </div>
+        )}
         
         {/* Countdown */}
         {countdown && !isExpired && (
