@@ -270,7 +270,7 @@ export async function DELETE(
       action: 'deleted', 
       entityId: id 
     }, {
-      deviceId,
+      deviceId: deviceId || undefined,
     });
 
     return NextResponse.json({ 

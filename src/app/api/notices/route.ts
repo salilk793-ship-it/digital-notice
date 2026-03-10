@@ -150,10 +150,10 @@ export async function POST(request: NextRequest) {
         likeCount: 0,
         commentCount: 0,
         // New optional fields
-        image: image || null,
-        attachment: attachment || null,
-        attachmentName: attachmentName || null,
-        contact: contact || null,
+        image: image || undefined,
+        attachment: attachment || undefined,
+        attachmentName: attachmentName || undefined,
+        contact: contact || undefined,
       },
       include: {
         publishedBy: {
